@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Калькулятор сметы с ИИ | Умный строительный опросник</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --accent: #38bdf8;
+      --accent-hover: #0ea5e9;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --border: #334155;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background-color: var(--bg); color: var(--text); padding: 40px 20px; display: flex; justify-content: center; }
+    .container { max-width: 680px; width: 100%; }
+    .header { text-align: center; margin-bottom: 30px; }
+    .header h1 { font-size: 28px; margin-bottom: 10px; color: #fff; }
+    .header p { color: var(--text-muted); font-size: 15px; }
+    .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 16px; padding: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+    .step { display: none; }
+    .step.active { display: block; animation: fadeIn 0.3s ease-in-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .form-group { margin-bottom: 22px; }
+    label { display: block; font-weight: 600; margin-bottom: 8px; font-size: 14px; color: var(--text-muted); }
+    input, select { width: 100%; padding: 14px; border-radius: 10px; border: 1px solid var(--border); background: #0f172a; color: #fff; font-size: 16px; outline: none; }
+    input:focus, select:focus { border-color: var(--accent); }
+    .btn { background: var(--accent); color: #0f172a; font-weight: 700; border: none; padding: 14px 24px; border-radius: 10px; cursor: pointer; width: 100%; font-size: 16px; transition: 0.2s; margin-top: 10px; }
+    .btn:hover { background: var(--accent-hover); }
+    .results { margin-top: 25px; padding: 20px; background: #0b1329; border-radius: 12px; border: 1px solid var(--border); }
+    .price-tag { font-size: 26px; font-weight: 800; color: #4ade80; margin: 10px 0; }
+    .metrics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 15px 0; font-size: 14px; }
+    .metric-item { background: #1e293b; padding: 10px; border-radius: 8px; }
+    .markdown-box { font-size: 14px; line-height: 1.6; color: #cbd5e1; margin-top: 15px; white-space: pre-line; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header">
+    <h1>🏗 Расчёт сметы дома на основе ИИ</h1>
+    <p>Многоступенчатый инженерный расчёт объёма стройматериалов без завышений</p>
+  </div>
+
+  <div class="card">
+    <div id="step-1" class="step active">
+      <div class="form-group">
+        <label>Общая площадь дома (м²):</label>
+        <input type="number" id="area" value="120" min="30" max="800">
+      </div>
+      <div class="form-group">
+        <label>Этажность:</label>
+        <select id="floors">
+          <option value="1">1 этаж</option>
+          <option value="2" selected>2 этажа</option>
+          <option value="3">3 этажа</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Материал наружных стен:</label>
+        <select id="wall_material">
+          <option value="aerated_concrete">Газобетонные блоки D500 (375 мм)</option>
+          <option value="brick">Кирпич керамический с утеплением</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Тип фундамента:</label>
+        <select id="foundation_type">
+          <option value="monolithic_slab">Монолитная ж/б плита (300 мм)</option>
+          <option value="strip_foundation">Ленточный заглубленный фундамент</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Кровельное покрытие:</label>
+        <select id="roof_type">
+          <option value="metal_tile">Металлочерепица 0.5 мм</option>
+          <option value="soft_roof">Мягкая гибкая черепица</option>
+        </select>
+      </div>
+      <button class="btn" onclick="calculate()">🤖 Сформировать смету с ИИ</button>
+    </div>
+
+    <div id="results" class="results" style="display: none;">
+      <h3>📊 Результат инженерного расчёта</h3>
+      <div class="price-tag" id="price">...</div>
+      
+      <div class="metrics-grid">
+        <div class="metric-item">Бетон: <b id="concrete">-</b></div>
+        <div class="metric-item">Арматура: <b id="rebar">-</b></div>
+        <div class="metric-item">Стеновые блоки: <b id="walls">-</b></div>
+        <div class="metric-item">Кровля: <b id="roof">-</b></div>
+      </div>
+
+      <div class="markdown-box" id="ai-text"></div>
+      
+      <button class="btn" style="background: #22c55e;" onclick="alert('Переход к оплате через ЮKassa/СБП...')">💳 Получить подробную спецификацию с чертежами (490 ₽)</button>
+    </div>
+  </div>
+</div>
+
+<script>
+async function calculate() {
+  const payload = {
+    area_sq_m: parseFloat(document.getElementById('area').value),
+    floors: parseInt(document.getElementById('floors').value),
+    wall_material: document.getElementById('wall_material').value,
+    foundation_type: document.getElementById('foundation_type').value,
+    roof_type: document.getElementById('roof_type').value
+  };
+
+  try {
+    const res = await fetch('/api/v1/estimate', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    
+    document.getElementById('price').innerText = `~${data.calculations.costs_rub.total_estimated_materials.toLocaleString()} ₽ (материалы)`;
+    document.getElementById('concrete').innerText = data.calculations.metrics.concrete_volume_m3 + ' м³';
+    document.getElementById('rebar').innerText = data.calculations.metrics.rebar_tons + ' т';
+    document.getElementById('walls').innerText = data.calculations.metrics.wall_volume_m3 + ' м³';
+    document.getElementById('roof').innerText = data.calculations.metrics.roof_area_sq_m + ' м²';
+    document.getElementById('ai-text').innerText = data.ai_report_markdown;
+    document.getElementById('results').style.display = 'block';
+  } catch (err) {
+    // Демо-режим, если бэкенд не запущен
+    alert('Для интерактивного вызова запустите uvicorn main:app!');
+  }
+}
+</script>
+</body>
+</html>
